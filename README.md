@@ -118,4 +118,4 @@ MIT — free to use, fork, and build on.
 
 ---
 
-*Built by Mariam Elsayed · IBM Product Manager Intern 2026 candidate*
+*Built by Mariam Elsayed*
