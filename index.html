@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pulse — Product Metrics Intelligence</title>
+<meta name="description" content="Real-time product analytics dashboard for data-driven PMs. DAU/MAU, retention, NPS, A/B tests, RICE prioritization, sprint health.">
+<meta property="og:title" content="Pulse — Product Metrics Intelligence">
+<meta property="og:description" content="Product analytics dashboard built by Mariam Elsayed — IBM PM Intern 2026 candidate.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230ea5e9'/%3E%3Cpath d='M6 22 L10 14 L14 18 L18 10 L22 16 L26 12' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#0a0f1a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+/* ─── TOKENS ─────────────────────────────── */
+:root{
+  --bg:    #080c14;
+  --bg1:   #0d1220;
+  --bg2:   #111827;
+  --bg3:   #1a2235;
+  --bg4:   #243047;
+
+  --b1: rgba(255,255,255,.07);
+  --b2: rgba(255,255,255,.12);
+  --b3: rgba(255,255,255,.20);
+
+  --t1: #f0f4ff;
+  --t2: #94a3b8;
+  --t3: #4b5a72;
+  --t4: #2a3448;
+
+  --sky:  #0ea5e9;
+  --cyan: #22d3ee;
+  --violet:#7c3aed;
+  --rose: #f43f5e;
+  --amber:#f59e0b;
+  --teal: #14b8a6;
+  --green:#22c55e;
+
+  --sky-a:   rgba(14,165,233,.12);
+  --rose-a:  rgba(244,63,94,.12);
+  --amber-a: rgba(245,158,11,.12);
+  --teal-a:  rgba(20,184,166,.12);
+  --green-a: rgba(34,197,94,.12);
+  --violet-a:rgba(124,58,237,.12);
+
+  --grad: linear-gradient(135deg, #0ea5e9, #7c3aed);
+
+  --s1:8px;--s2:16px;--s3:24px;--s4:32px;--s5:40px;--s6:48px;
+
+  --r:12px;--rs:8px;--rl:16px;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+body{
+  background:var(--bg);color:var(--t1);
+  font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.6;
+  min-height:100vh;overflow-x:hidden;
+}
+
+/* scrollbar */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:99px;}
+::-webkit-scrollbar-thumb:hover{background:var(--sky);}
+::selection{background:rgba(14,165,233,.25);color:var(--t1);}
+:focus-visible{outline:2px solid rgba(14,165,233,.5);outline-offset:2px;border-radius:var(--rs);}
+
+/* atmosphere */
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 60% 40% at 0% 0%, rgba(14,165,233,.08) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 100% 100%, rgba(124,58,237,.07) 0%, transparent 60%);
+}
+
+/* ─── LAYOUT ─────────────────────────────── */
+.shell{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:var(--s3) var(--s4);}
+
+/* ─── TOPBAR ─────────────────────────────── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:var(--s4);padding-bottom:var(--s3);
+  border-bottom:1px solid var(--b1);
+}
+.brand{display:flex;align-items:center;gap:var(--s1);}
+.brand-icon{
+  width:32px;height:32px;border-radius:var(--rs);background:var(--grad);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 20px rgba(14,165,233,.3);
+}
+.brand-icon svg{width:16px;height:16px;}
+.brand-name{
+  font-family:'Syne',sans-serif;font-size:18px;font-weight:800;
+  letter-spacing:-.3px;color:var(--t1);
+}
+.brand-tag{font-size:11px;color:var(--t3);margin-left:6px;padding-top:2px;}
+.topbar-right{display:flex;align-items:center;gap:var(--s2);}
+.live-badge{
+  display:flex;align-items:center;gap:6px;
+  font-family:'DM Mono',monospace;font-size:10px;color:var(--t3);
+  background:var(--bg2);border:1px solid var(--b1);
+  border-radius:99px;padding:4px 12px;
+}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.seg-filter{display:flex;gap:4px;background:var(--bg2);border:1px solid var(--b1);border-radius:var(--rs);padding:3px;}
+.seg-btn{
+  font-size:11px;font-weight:500;padding:4px 10px;border-radius:6px;
+  border:none;background:transparent;color:var(--t3);cursor:pointer;
+  font-family:'DM Sans',sans-serif;transition:all .15s;
+}
+.seg-btn.on{background:var(--bg4);color:var(--t1);}
+.date-badge{
+  font-family:'DM Mono',monospace;font-size:10px;color:var(--t3);
+  background:var(--bg2);border:1px solid var(--b1);border-radius:var(--rs);padding:5px 12px;
+}
+
+/* ─── INSIGHT STRIP ──────────────────────── */
+.insight-strip{
+  display:flex;gap:var(--s1);margin-bottom:var(--s3);
+  overflow-x:auto;padding-bottom:2px;
+}
+.insight-pill{
+  display:flex;align-items:center;gap:8px;
+  background:var(--bg2);border:1px solid var(--b1);border-radius:99px;
+  padding:6px 14px;white-space:nowrap;flex-shrink:0;
+  transition:border-color .2s;cursor:default;
+}
+.insight-pill:hover{border-color:var(--b2);}
+.insight-pill-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.ip-sky{background:var(--sky);}
+.ip-rose{background:var(--rose);}
+.ip-green{background:var(--green);}
+.ip-amber{background:var(--amber);}
+.insight-pill-text{font-size:11.5px;color:var(--t2);}
+.insight-pill-text strong{color:var(--t1);font-weight:600;}
+
+/* ─── KPI ROW ────────────────────────────── */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:var(--s1);margin-bottom:var(--s3);}
+.kpi{
+  background:var(--bg2);border:1px solid var(--b1);border-radius:var(--r);
+  padding:var(--s3) var(--s2) var(--s2);position:relative;overflow:hidden;
+  transition:border-color .2s,transform .18s;
+}
+.kpi:hover{border-color:var(--b2);transform:translateY(-2px);}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.kpi-label{font-size:9px;font-weight:600;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:var(--s1);font-family:'DM Mono',monospace;}
+.kpi-val{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;letter-spacing:-1.5px;line-height:1;margin-bottom:5px;}
+.kpi-delta{display:flex;align-items:center;gap:4px;font-size:11px;font-family:'DM Mono',monospace;}
+.kpi-delta.up{color:var(--green);}
+.kpi-delta.dn{color:var(--rose);}
+.kpi-hint{font-size:11px;color:var(--t3);margin-top:2px;}
+
+/* ─── GRID LAYOUTS ───────────────────────── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:var(--s1);margin-bottom:var(--s1);}
+.g3{display:grid;grid-template-columns:2fr 1fr;gap:var(--s1);margin-bottom:var(--s1);}
+.g4{display:grid;grid-template-columns:1fr 2fr;gap:var(--s1);margin-bottom:var(--s1);}
+.g5{display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--s1);margin-bottom:var(--s1);}
+
+/* ─── CARD ───────────────────────────────── */
+.card{
+  background:var(--bg2);border:1px solid var(--b1);border-radius:var(--r);
+  overflow:hidden;transition:border-color .2s;
+}
+.card:hover{border-color:var(--b2);}
+.card-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px var(--s3);border-bottom:1px solid var(--b1);
+  background:rgba(255,255,255,.018);min-height:44px;
+}
+.card-title{
+  display:flex;align-items:center;gap:var(--s1);
+  font-size:12px;font-weight:600;color:var(--t1);letter-spacing:-.1px;
+}
+.card-icon{
+  width:26px;height:26px;border-radius:7px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.ci-sky{background:var(--sky-a);}
+.ci-rose{background:var(--rose-a);}
+.ci-amber{background:var(--amber-a);}
+.ci-teal{background:var(--teal-a);}
+.ci-green{background:var(--green-a);}
+.ci-violet{background:var(--violet-a);}
+.card-badge{
+  font-size:10px;font-weight:500;padding:2px 8px;border-radius:99px;
+  font-family:'DM Mono',monospace;
+}
+.cb-sky{background:var(--sky-a);color:var(--sky);border:1px solid rgba(14,165,233,.2);}
+.cb-rose{background:var(--rose-a);color:var(--rose);border:1px solid rgba(244,63,94,.2);}
+.cb-green{background:var(--green-a);color:var(--green);border:1px solid rgba(34,197,94,.2);}
+.cb-amber{background:var(--amber-a);color:var(--amber);border:1px solid rgba(245,158,11,.2);}
+.cb-teal{background:var(--teal-a);color:var(--teal);border:1px solid rgba(20,184,166,.2);}
+.cb-violet{background:var(--violet-a);color:var(--violet);border:1px solid rgba(124,58,237,.2);}
+.cb-neutral{background:var(--bg3);color:var(--t2);border:1px solid var(--b1);}
+.card-body{padding:var(--s3);}
+.chart-wrap{height:200px;position:relative;}
+.chart-wrap-sm{height:160px;position:relative;}
+.chart-wrap-lg{height:240px;position:relative;}
+
+/* ─── RETENTION TABLE ────────────────────── */
+.ret-table{width:100%;border-collapse:collapse;}
+.ret-table th{
+  font-family:'DM Mono',monospace;font-size:9px;font-weight:500;
+  color:var(--t3);text-transform:uppercase;letter-spacing:.08em;
+  padding:8px var(--s2);background:var(--bg3);border-bottom:1px solid var(--b1);text-align:center;
+}
+.ret-table th:first-child{text-align:left;}
+.ret-table td{
+  padding:9px var(--s2);border-bottom:1px solid var(--b1);
+  font-family:'DM Mono',monospace;font-size:11px;color:var(--t2);text-align:center;
+}
+.ret-table td:first-child{text-align:left;color:var(--t1);font-weight:500;}
+.ret-table tr:last-child td{border-bottom:none;}
+.ret-table tr:hover td{background:rgba(14,165,233,.03);}
+.ret-cell{display:inline-block;padding:2px 6px;border-radius:5px;font-size:11px;font-weight:500;}
+
+/* ─── FUNNEL ─────────────────────────────── */
+.funnel{display:flex;flex-direction:column;gap:var(--s1);padding:var(--s3);}
+.funnel-step{position:relative;}
+.funnel-bar-wrap{display:flex;align-items:center;gap:var(--s2);margin-bottom:4px;}
+.funnel-label{font-size:12px;color:var(--t2);width:140px;flex-shrink:0;}
+.funnel-track{flex:1;height:28px;background:var(--bg3);border-radius:6px;overflow:hidden;position:relative;}
+.funnel-fill{height:100%;border-radius:6px;display:flex;align-items:center;padding-left:var(--s1);transition:width 1.2s cubic-bezier(.4,0,.2,1);}
+.funnel-pct{font-family:'DM Mono',monospace;font-size:10px;color:var(--t1);font-weight:500;}
+.funnel-count{font-family:'DM Mono',monospace;font-size:10px;color:var(--t3);min-width:60px;text-align:right;}
+.funnel-drop{font-size:10px;color:var(--rose);font-family:'DM Mono',monospace;text-align:right;opacity:.8;}
+
+/* ─── NPS ────────────────────────────────── */
+.nps-big{
+  font-family:'Syne',sans-serif;font-size:56px;font-weight:800;
+  letter-spacing:-3px;line-height:1;text-align:center;
+  margin:var(--s3) 0 var(--s2);
+}
+.nps-bar{height:8px;border-radius:99px;overflow:hidden;display:flex;margin:0 var(--s3) var(--s2);}
+.nps-det{margin-left:0px;font-family:'DM Mono',monospace;font-size:10px;color:var(--t3);text-align:center;margin-bottom:var(--s1);}
+.nps-segments{display:flex;justify-content:space-between;padding:0 var(--s3) var(--s2);}
+.nps-seg{text-align:center;}
+.nps-seg-val{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;letter-spacing:-1px;}
+.nps-seg-lbl{font-size:10px;color:var(--t3);font-family:'DM Mono',monospace;margin-top:2px;}
+
+/* ─── RICE TABLE ─────────────────────────── */
+.rice-table{width:100%;border-collapse:collapse;}
+.rice-table th{
+  font-family:'DM Mono',monospace;font-size:9px;font-weight:500;
+  color:var(--t3);text-transform:uppercase;letter-spacing:.08em;
+  padding:8px var(--s2);background:var(--bg3);border-bottom:1px solid var(--b1);text-align:left;
+}
+.rice-table td{padding:10px var(--s2);border-bottom:1px solid var(--b1);font-size:12px;color:var(--t2);vertical-align:middle;}
+.rice-table tr:last-child td{border-bottom:none;}
+.rice-table tr:hover td{background:rgba(14,165,233,.025);}
+.rice-score{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;letter-spacing:-1px;}
+.rice-bar{height:3px;background:var(--bg4);border-radius:99px;overflow:hidden;margin-top:4px;max-width:80px;}
+.rice-fill{height:100%;border-radius:99px;background:var(--grad);transition:width 1s cubic-bezier(.4,0,.2,1);}
+.rank-badge{
+  font-family:'DM Mono',monospace;font-size:10px;font-weight:500;
+  padding:2px 7px;border-radius:5px;
+}
+
+/* ─── AB TEST ────────────────────────────── */
+.ab-variants{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2);padding:var(--s3);}
+.ab-variant{background:var(--bg3);border:1px solid var(--b1);border-radius:var(--rs);padding:var(--s2);}
+.ab-variant.winner{border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.04);}
+.ab-variant-tag{font-family:'DM Mono',monospace;font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin-bottom:var(--s1);}
+.ab-variant.winner .ab-variant-tag{color:var(--green);}
+.ab-metric-val{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;letter-spacing:-1.5px;line-height:1;margin-bottom:4px;}
+.ab-metric-lbl{font-size:11px;color:var(--t3);}
+.ab-lift{font-size:11px;font-weight:600;color:var(--green);font-family:'DM Mono',monospace;margin-top:var(--s1);}
+.ab-confidence{
+  margin:var(--s2) var(--s3) var(--s3);
+  background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.15);
+  border-radius:var(--rs);padding:10px 14px;
+  font-size:12px;color:var(--t2);line-height:1.6;
+}
+.ab-confidence strong{color:var(--green);}
+
+/* ─── SPRINT ─────────────────────────────── */
+.sprint-meta{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--b1);background:var(--bg3);}
+.sprint-cell{padding:10px var(--s3);font-size:11.5px;color:var(--t3);border-right:1px solid var(--b1);}
+.sprint-cell:last-child{border-right:none;}
+.sprint-cell strong{color:var(--t1);font-weight:600;}
+.sprint-burndown{padding:var(--s3);}
+.sprint-tasks{display:flex;flex-direction:column;}
+.sprint-task{
+  display:flex;align-items:center;gap:var(--s2);
+  padding:9px var(--s3);border-bottom:1px solid var(--b1);
+  transition:background .12s;
+}
+.sprint-task:last-child{border-bottom:none;}
+.sprint-task:hover{background:rgba(14,165,233,.02);}
+.task-status{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.ts-done{background:var(--green);}
+.ts-prog{background:var(--sky);}
+.ts-todo{background:var(--bg4);border:1px solid var(--b2);}
+.task-text{flex:1;font-size:12px;color:var(--t2);}
+.task-pts{font-family:'DM Mono',monospace;font-size:10px;color:var(--t3);}
+.task-owner{font-size:10px;color:var(--t4);font-family:'DM Mono',monospace;}
+.task-label{font-family:'DM Mono',monospace;font-size:9.5px;padding:2px 7px;border-radius:4px;}
+.tl-p0{background:var(--rose-a);color:var(--rose);}
+.tl-p1{background:var(--amber-a);color:var(--amber);}
+.tl-p2{background:var(--sky-a);color:var(--sky);}
+.tl-p3{background:var(--teal-a);color:var(--teal);}
+
+/* ─── SEGMENT ────────────────────────────── */
+.seg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;}
+.seg-col{padding:var(--s3);border-right:1px solid var(--b1);}
+.seg-col:last-child{border-right:none;}
+.seg-col:hover{background:rgba(14,165,233,.02);}
+.seg-name{font-size:11px;font-weight:600;color:var(--t1);margin-bottom:var(--s1);display:flex;align-items:center;gap:6px;}
+.seg-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.seg-stat{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;letter-spacing:-1px;line-height:1;margin-bottom:4px;}
+.seg-desc{font-size:11px;color:var(--t3);line-height:1.5;}
+.seg-bar{height:2px;background:var(--bg4);border-radius:99px;overflow:hidden;margin-top:var(--s1);}
+.seg-fill{height:100%;border-radius:99px;background:var(--grad);transition:width 1s cubic-bezier(.4,0,.2,1);}
+
+/* ─── INSIGHTS PANEL ─────────────────────── */
+.insights-list{display:flex;flex-direction:column;}
+.insight-row{
+  display:flex;align-items:flex-start;gap:var(--s2);
+  padding:var(--s2) var(--s3);border-bottom:1px solid var(--b1);
+  transition:background .12s;
+}
+.insight-row:last-child{border-bottom:none;}
+.insight-row:hover{background:rgba(14,165,233,.02);}
+.insight-icon{
+  width:28px;height:28px;border-radius:var(--rs);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;
+}
+.insight-body{flex:1;}
+.insight-title{font-size:12.5px;font-weight:600;color:var(--t1);margin-bottom:3px;letter-spacing:-.1px;}
+.insight-desc{font-size:11.5px;color:var(--t3);line-height:1.6;}
+.insight-meta{display:flex;align-items:center;gap:6px;margin-top:5px;}
+.impact-chip{
+  font-family:'DM Mono',monospace;font-size:9px;font-weight:600;
+  padding:2px 7px;border-radius:4px;letter-spacing:.05em;
+}
+.ic-high{background:var(--rose-a);color:var(--rose);}
+.ic-med{background:var(--amber-a);color:var(--amber);}
+.ic-low{background:var(--teal-a);color:var(--teal);}
+.insight-action{font-size:11px;color:var(--sky);font-weight:500;}
+
+/* ─── FOOTER ─────────────────────────────── */
+.footer{
+  margin-top:var(--s6);padding:var(--s3) 0;border-top:1px solid var(--b1);
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--s2);
+}
+.footer-l{font-family:'DM Mono',monospace;font-size:10px;color:var(--t4);letter-spacing:.05em;}
+.footer-tags{display:flex;gap:6px;flex-wrap:wrap;}
+.ftag{font-size:10px;padding:2px 8px;border-radius:4px;font-family:'DM Mono',monospace;}
+
+/* ─── EXPORT BTN ─────────────────────────── */
+.export-btn{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:10.5px;font-weight:600;color:var(--sky);
+  background:var(--sky-a);border:1px solid rgba(14,165,233,.2);
+  border-radius:var(--rs);padding:4px 10px;cursor:pointer;
+  transition:all .15s;font-family:'DM Sans',sans-serif;
+}
+.export-btn:hover{background:rgba(14,165,233,.2);}
+
+/* ─── ANIMATIONS ─────────────────────────── */
+@keyframes fadeup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.au{animation:fadeup .4s ease both;}
+
+/* ─── RESPONSIVE ─────────────────────────── */
+@media(max-width:900px){
+  .shell{padding:var(--s2);}
+  .kpi-row{grid-template-columns:1fr 1fr;}
+  .g2,.g3,.g4,.g5{grid-template-columns:1fr;}
+  .seg-grid{grid-template-columns:1fr;}
+  .ab-variants{grid-template-columns:1fr;}
+}
+
+/* ─── PRINT ──────────────────────────────── */
+@media print{
+  body::before,.live-dot{display:none!important;}
+  body{background:#fff;color:#000;}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- TOPBAR -->
+<div class="topbar au">
+  <div class="brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 16 16" fill="none">
+        <path d="M2 11 L4.5 7 L7 9.5 L9.5 5 L12 8 L14 6" stroke="white" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div>
+      <span class="brand-name">Pulse</span>
+      <span class="brand-tag">Product Intelligence</span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="seg-filter" id="segFilter">
+      <button class="seg-btn on" onclick="setSeg(this,'all')">All Users</button>
+      <button class="seg-btn" onclick="setSeg(this,'enterprise')">Enterprise</button>
+      <button class="seg-btn" onclick="setSeg(this,'smb')">SMB</button>
+      <button class="seg-btn" onclick="setSeg(this,'mobile')">Mobile</button>
+    </div>
+    <div class="live-badge"><div class="live-dot"></div>Live · Q1 2025</div>
+    
+    <button class="export-btn" onclick="exportReport()">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v5M2.5 4L5 6.5 7.5 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 8v.5a.5.5 0 00.5.5h7a.5.5 0 00.5-.5V8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      Export Report
+    </button>
+  </div>
+</div>
+
+<!-- INSIGHT STRIP -->
+<div class="insight-strip au" style="animation-delay:.05s">
+  <div class="insight-pill">
+    <div class="insight-pill-dot ip-rose"></div>
+    <span class="insight-pill-text"><strong>Dashboard load time</strong> is your #1 churn signal — 5 users mentioned cancellation</span>
+  </div>
+  <div class="insight-pill">
+    <div class="insight-pill-dot ip-green"></div>
+    <span class="insight-pill-text">Variant B in A/B test shows <strong>+18.4% conversion</strong> — statistically significant</span>
+  </div>
+  <div class="insight-pill">
+    <div class="insight-pill-dot ip-amber"></div>
+    <span class="insight-pill-text">Sprint 12 velocity <strong>dropped 22%</strong> — 3 unplanned P0 bugs added mid-sprint</span>
+  </div>
+  <div class="insight-pill">
+    <div class="insight-pill-dot ip-sky"></div>
+    <span class="insight-pill-text">Mobile DAU grew <strong>+31% MoM</strong> — iOS feature parity driving adoption</span>
+  </div>
+</div>
+
+<!-- EXECUTIVE SUMMARY STRIP -->
+<div class="au" style="animation-delay:.06s;margin-bottom:var(--s3);">
+  <div style="background:linear-gradient(135deg,rgba(14,165,233,.08),rgba(124,58,237,.08));border:1px solid var(--b1);border-radius:var(--r);padding:var(--s3);">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;font-weight:600;color:var(--sky);letter-spacing:.12em;text-transform:uppercase;margin-bottom:var(--s1);">Executive Summary · Q1 2025</div>
+    <div style="font-size:14px;color:var(--t1);line-height:1.75;max-width:900px;">
+      Product health is <strong style="color:var(--green)">improving</strong> — DAU up 12.4% MoM, NPS reached +47 (↑11 pts QoQ), and Variant B A/B test is ready to ship (+18.4% conversion, +$84K MRR impact). 
+      Critical risk: dashboard load time is driving cancellation intent in the enterprise segment. Sprint 12 is on track to resolve this. 
+      <strong style="color:var(--amber)">Recommend</strong>: ship Variant B immediately, prioritize dashboard fix as Sprint 13 P0, and accelerate mobile investment given +31% MoM DAU growth.
+    </div>
+  </div>
+</div>
+
+<!-- KPI ROW -->
+<div class="kpi-row au" style="animation-delay:.08s">
+  <div class="kpi" style="--kc:var(--sky)">
+    <div class="kpi::before" style="background:var(--sky)"></div>
+    <style>.kpi:nth-child(1)::before{background:var(--sky)}</style>
+    <div class="kpi-label">DAU</div>
+    <div class="kpi-val" style="color:var(--sky)" id="kDau">0</div>
+    <div class="kpi-delta up">↑ 12.4% MoM</div>
+    <div class="kpi-hint">Daily active users</div>
+  </div>
+  <div class="kpi">
+    <style>.kpi:nth-child(2)::before{background:var(--violet)}</style>
+    <div class="kpi-label">MAU</div>
+    <div class="kpi-val" style="color:var(--violet)" id="kMau">0</div>
+    <div class="kpi-delta up">↑ 8.7% MoM</div>
+    <div class="kpi-hint">Monthly active users</div>
+  </div>
+  <div class="kpi">
+    <style>.kpi:nth-child(3)::before{background:var(--green)}</style>
+    <div class="kpi-label">NPS Score</div>
+    <div class="kpi-val" style="color:var(--green)" id="kNps">0</div>
+    <div class="kpi-delta up">↑ 11 pts QoQ</div>
+    <div class="kpi-hint">Net Promoter Score</div>
+  </div>
+  <div class="kpi">
+    <style>.kpi:nth-child(4)::before{background:var(--amber)}</style>
+    <div class="kpi-label">D30 Retention</div>
+    <div class="kpi-val" style="color:var(--amber)" id="kRet">0</div>
+    <div class="kpi-delta dn">↓ 2.1% MoM</div>
+    <div class="kpi-hint">30-day retention rate</div>
+  </div>
+  <div class="kpi">
+    <style>.kpi:nth-child(5)::before{background:var(--teal)}</style>
+    <div class="kpi-label">Stickiness</div>
+    <div class="kpi-val" style="color:var(--teal)" id="kStick">0</div>
+    <div class="kpi-delta up">↑ 3.2% MoM</div>
+    <div class="kpi-hint">DAU / MAU ratio</div>
+  </div>
+</div>
+
+<!-- ROW 1: DAU/MAU chart + NPS -->
+<div class="g3 au" style="animation-delay:.1s">
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <div class="card-icon ci-sky">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 9L3.5 5.5 5.5 7.5 8 3 10 6 11 5" stroke="#0ea5e9" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        DAU / MAU Trend
+      </div>
+      <span class="card-badge cb-sky">90 days</span>
+    </div>
+    <div class="card-body"><div class="chart-wrap-lg"><canvas id="dauChart"></canvas></div></div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <div class="card-icon ci-green">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5L11.5 10.5H.5L6 1.5z" stroke="#22c55e" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 5v3" stroke="#22c55e" stroke-width="1.3" stroke-linecap="round"/><circle cx="6" cy="9" r=".5" fill="#22c55e"/></svg>
+        </div>
+        NPS Breakdown
+      </div>
+      <span class="card-badge cb-green">Q1 2025</span>
+    </div>
+    <div class="nps-big" style="color:var(--green)">+47</div>
+    <div class="nps-bar">
+      <div style="flex:3.2;background:var(--rose)"></div>
+      <div style="flex:2.1;background:var(--bg4)"></div>
+      <div style="flex:4.7;background:var(--green)"></div>
+    </div>
+    <div class="nps-det">Detractors 32% · Passives 21% · Promoters 47%</div>
+    <div class="nps-segments">
+      <div class="nps-seg"><div class="nps-seg-val" style="color:var(--rose)">32%</div><div class="nps-seg-lbl">Detractors</div></div>
+      <div class="nps-seg"><div class="nps-seg-val" style="color:var(--t3)">21%</div><div class="nps-seg-lbl">Passives</div></div>
+      <div class="nps-seg"><div class="nps-seg-val" style="color:var(--green)">47%</div><div class="nps-seg-lbl">Promoters</div></div>
+    </div>
+    <div class="card-body" style="padding-top:0"><div class="chart-wrap-sm"><canvas id="npsChart"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ROW 2: Retention cohort + Feature Adoption Funnel -->
+<div class="g2 au" style="animation-delay:.12s">
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <div class="card-icon ci-violet">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="10" height="10" rx="2" stroke="#7c3aed" stroke-width="1.3"/><path d="M4 1v10M7 1v10M1 4h10M1 7h10" stroke="#7c3aed" stroke-width="1" stroke-opacity=".5"/></svg>
+        </div>
+        Retention Cohort
+      </div>
+      <span class="card-badge cb-violet">by signup week</span>
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+      <table class="ret-table">
+        <thead><tr><th>Cohort</th><th>Size</th><th>W1</th><th>W2</th><th>W4</th><th>W8</th><th>W12</th></tr></thead>
+        <tbody id="retentionTable"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <div class="card-icon ci-sky">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 3h10v1.5L8 6.5V11H4V6.5L1 4.5V3z" stroke="#0ea5e9" stroke-width="1.3" stroke-linejoin="round"/></svg>
+        </div>
+        Feature Adoption Funnel
+      </div>
+      <span class="card-badge cb-sky">Onboarding flow</span>
+    </div>
+    <div class="funnel" id="funnelData"></div>
+  </div>
+</div>
+
+<!-- ROW 3: A/B Test + Customer Segments -->
+<div class="g2 au" style="animation-delay:.14s">
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <div class="card-icon ci-teal">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="4" cy="6" r="3" stroke="#14b8a6" stroke-width="1.3"/><circle cx="8" cy="6" r="3" stroke="#14b8a6" stroke-width="1.3" opacity=".5"/></svg>
+        </div>
+        Active A/B Test — Checkout Flow
+      </div>
+      <span class="card-badge cb-green">Winner detected</span>
+    </div>
+    <div class="ab-variants">
+      <div class="ab-variant">
+        <div class="ab-variant-tag">Variant A · Control</div>
+        <div class="ab-metric-val" style="color:var(--t2)">3.2%</div>
+        <div class="ab-metric-lbl">Conversion rate</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:var(--s1);">n = 12,400 users</div>
+      </div>
+      <div class="ab-variant winner">
+        <div class="ab-variant-tag">Variant B · Treatment ✓</div>
+        <div class="ab-metric-val" style="color:var(--green)">3.79%</div>
+        <div class="ab-metric-lbl">Conversion rate</div>
+        <div class="ab-lift">+18.4% lift · p &lt; 0.01</div>
+      </div>
+    </div>
+    <div class="ab-confidence">
+      <strong>Recommendation:</strong> Ship Variant B. 99% statistical confidence, 18.4% conversion lift on 12,400 users. Estimated revenue impact: <strong>+$84K MRR</strong> at current traffic.
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <div class="card-icon ci-amber">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="4.5" cy="4.5" r="2.5" stroke="#f59e0b" stroke-width="1.3"/><circle cx="8" cy="4.5" r="2" stroke="#f59e0b" stroke-width="1.3" opacity=".6"/><path d="M2 10c0-1.7 1.1-3 2.5-3s2.5 1.3 2.5 3" stroke="#f59e0b" stroke-width="1.3" stroke-linecap="round"/><path d="M8 7.5c1 .3 1.7 1.2 1.7 2.5" stroke="#f59e0b" stroke-width="1.3" stroke-linecap="round" opacity=".6"/></svg>
+        </div>
+        Customer Segments
+      </div>
+      <span class="card-badge cb-amber">by plan type</span>
+    </div>
+    <div class="seg-grid">
+      <div class="seg-col">
+        <div class="seg-name"><div class="seg-dot" style="background:var(--sky)"></div>Enterprise</div>
+        <div class="seg-stat" style="color:var(--sky)">34%</div>
+        <div class="seg-desc">Highest LTV · Mobile crashes blocking $2.1M ARR at risk</div>
+        <div class="seg-bar"><div class="seg-fill" style="width:0" data-w="68%"></div></div>
+      </div>
+      <div class="seg-col">
+        <div class="seg-name"><div class="seg-dot" style="background:var(--violet)"></div>SMB</div>
+        <div class="seg-stat" style="color:var(--violet)">48%</div>
+        <div class="seg-desc">Largest segment · Dashboard performance top complaint</div>
+        <div class="seg-bar"><div class="seg-fill" style="width:0" data-w="96%"></div></div>
+      </div>
+      <div class="seg-col">
+        <div class="seg-name"><div class="seg-dot" style="background:var(--teal)"></div>Mobile</div>
+        <div class="seg-stat" style="color:var(--teal)">18%</div>
+        <div class="seg-desc">Fastest growing · +31% MoM since iOS feature parity</div>
+        <div class="seg-bar"><div class="seg-fill" style="width:0" data-w="36%"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ROW 4: RICE Prioritization -->
+<div class="au" style="animation-delay:.16s;margin-bottom:var(--s1)">
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <div class="card-icon ci-rose">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="2" width="10" height="8" rx="1.5" stroke="#f43f5e" stroke-width="1.3"/><path d="M4 2V1m4 1V1M1 5h10" stroke="#f43f5e" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </div>
+        RICE Prioritization — Q2 Backlog
+      </div>
+      <span class="card-badge cb-rose">6 features · data-driven</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="rice-table">
+        <thead><tr><th>#</th><th>Feature</th><th>Reach</th><th>Impact</th><th>Confidence</th><th>Effort</th><th>RICE Score</th><th>Recommendation</th></tr></thead>
+        <tbody id="riceTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ROW 5: Sprint Health + PM Insights -->
+<div class="g4 au" style="animation-delay:.18s">
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <div class="card-icon ci-sky">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="10" height="10" rx="1.5" stroke="#0ea5e9" stroke-width="1.3"/><path d="M3 1v10M1 4h4" stroke="#0ea5e9" stroke-width="1" opacity=".5"/></svg>
+        </div>
+        Sprint 12 Health
+      </div>
+      <span class="card-badge cb-sky">Day 8 of 14</span>
+    </div>
+    <div class="sprint-meta">
+      <div class="sprint-cell">Goal: <strong>Platform Stability</strong></div>
+      <div class="sprint-cell">Velocity: <strong>34 pts</strong></div>
+      <div class="sprint-cell">Done: <strong>21 pts</strong></div>
+      <div class="sprint-cell">Remaining: <strong>13 pts</strong></div>
+    </div>
+    <div class="sprint-burndown">
+      <div class="chart-wrap-sm"><canvas id="burndownChart"></canvas></div>
+    </div>
+    <div class="sprint-tasks" id="sprintTasks"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <div class="card-icon ci-violet">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5L11 4v4c0 2-2.5 3.5-5 4C3.5 11.5 1 10 1 8V4l5-2.5z" stroke="#7c3aed" stroke-width="1.3" stroke-linejoin="round"/></svg>
+        </div>
+        PM Insights Engine
+      </div>
+      <span class="card-badge cb-violet">7 signals detected</span>
+    </div>
+    <div class="insights-list" id="insightsList"></div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer au" style="animation-delay:.2s">
+  <span class="footer-l">PULSE · PRODUCT METRICS INTELLIGENCE · Q1 2025 · Built by Mariam Elsayed</span>
+  <div class="footer-tags">
+    <span class="ftag cb-sky">Product Analytics</span>
+    <span class="ftag cb-violet">Agile PM</span>
+    <span class="ftag cb-teal">A/B Testing</span>
+    <span class="ftag cb-rose">RICE Framework</span>
+    <span class="ftag cb-neutral">Responsible AI</span>
+  </div>
+</div>
+
+</div><!-- /shell -->
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────
+const SEGMENTS = {
+  all:        {dau:24800, mau:118400, nps:47, d30:68.4, stick:20.9, dauMult:1,   mauMult:1},
+  enterprise: {dau:8400,  mau:40200,  nps:52, d30:74.1, stick:20.9, dauMult:.34, mauMult:.34},
+  smb:        {dau:11900, mau:56800,  nps:44, d30:65.2, stick:20.9, dauMult:.48, mauMult:.48},
+  mobile:     {dau:4500,  mau:21400,  nps:39, d30:61.8, stick:20.9, dauMult:.18, mauMult:.18},
+};
+let currentSeg = 'all';
+
+const DAU_DATA = [18200,18900,19400,19100,20200,20800,19900,21200,21800,22100,21400,22800,23200,22900,23800,24100,23600,24500,24800,24200,25100,25400,24900,25800,26100,25600,26400,26800,26200,27100];
+const MAU_DATA = [98000,99200,100100,101300,102400,103800,105200,106400,107900,109100,110300,111800,113200,114500,116100,117400,118400,119200,120400,121800,123100,124400,125800,127200,128600,130100,131500,133000,134400,135900];
+const NPS_TREND = [28,31,29,34,36,33,38,40,38,42,44,41,45,47,46,49,47,50,48,51,49,47,51,54,52,55,53,50,54,57];
+const WEEKS = ['W1','W2','W3','W4','W5','W6','W7','W8','W9','W10','W11','W12','W13','W14','W15','W16','W17','W18','W19','W20','W21','W22','W23','W24','W25','W26','W27','W28','W29','W30'];
+const DAYS = Array.from({length:30},(_,i)=>`Mar ${i+1}`);
+
+const COHORTS = [
+  {week:'Jan W1', size:'4,210', w1:'100%',w2:'68%',w4:'51%',w8:'38%',w12:'29%'},
+  {week:'Jan W2', size:'3,890', w1:'100%',w2:'71%',w4:'54%',w8:'41%',w12:'31%'},
+  {week:'Jan W3', size:'4,540', w1:'100%',w2:'69%',w4:'52%',w8:'39%',w12:null},
+  {week:'Jan W4', size:'3,720', w1:'100%',w2:'73%',w4:'56%',w8:null, w12:null},
+  {week:'Feb W1', size:'4,810', w1:'100%',w2:'70%',w4:null, w8:null, w12:null},
+  {week:'Feb W2', size:'5,120', w1:'100%',w2:null, w4:null, w8:null, w12:null},
+];
+
+const FUNNEL_DATA = [
+  {label:'Signup', count:12400, pct:100},
+  {label:'Email verified', count:10850, pct:87.5},
+  {label:'First session', count:9320, pct:75.2},
+  {label:'Core feature used', count:6840, pct:55.2},
+  {label:'Invited teammate', count:3960, pct:31.9},
+  {label:'Paid conversion', count:1490, pct:12.0},
+];
+
+const RICE_DATA = [
+  {rank:1, name:'Dashboard Performance Fix', reach:8400, impact:4, conf:90, effort:2, score:0, rec:'Do Now',  recClass:'ic-high'},
+  {rank:2, name:'iOS 17 Crash Fix',          reach:6200, impact:4, conf:95, effort:2, score:0, rec:'Do Now',  recClass:'ic-high'},
+  {rank:3, name:'Slack Integration',         reach:5100, impact:3, conf:80, effort:4, score:0, rec:'Plan Next',recClass:'ic-med'},
+  {rank:4, name:'Guided Onboarding Flow',    reach:4800, impact:3, conf:75, effort:3, score:0, rec:'Plan Next',recClass:'ic-med'},
+  {rank:5, name:'Dark Mode',                 reach:3200, impact:2, conf:85, effort:1, score:0, rec:'Quick Win',recClass:'ic-low'},
+  {rank:6, name:'Custom Report Builder',     reach:2100, impact:2, conf:70, effort:5, score:0, rec:'Consider', recClass:'ic-low'},
+];
+RICE_DATA.forEach(f => { f.score = Math.round((f.reach * f.impact * (f.conf/100)) / f.effort); });
+
+const SPRINT_TASKS = [
+  {status:'done', label:'P0', labelCls:'tl-p0', text:'Fix dashboard load time — sub-2s target', pts:8,  owner:'Eng'},
+  {status:'done', label:'P0', labelCls:'tl-p0', text:'Resolve iOS 17 crash on mobile app',       pts:8,  owner:'iOS'},
+  {status:'prog', label:'P1', labelCls:'tl-p1', text:'Add performance monitoring + alerts',       pts:5,  owner:'Eng'},
+  {status:'todo', label:'P2', labelCls:'tl-p2', text:'Slack notification integration (v1)',       pts:8,  owner:'BE'},
+  {status:'todo', label:'P3', labelCls:'tl-p3', text:'Onboarding flow — step 1 & 2',              pts:5,  owner:'FE'},
+];
+
+const INSIGHTS = [
+  {icon:'alert', bg:'var(--rose-a)', title:'Churn risk — Dashboard performance', desc:'5 enterprise users mentioned cancellation intent this week. Dashboard P75 load time is 8.2s. Fix is P0 for Sprint 13.', impact:'HIGH', action:'Escalate to engineering'},
+  {icon:'check', bg:'var(--green-a)', title:'A/B Test winner ready to ship', desc:'Variant B checkout flow shows +18.4% conversion lift at 99% confidence across 12,400 users. Revenue impact: +$84K MRR.', impact:'HIGH', action:'Ship immediately'},
+  {icon:'warn',  bg:'var(--amber-a)', title:'Sprint velocity dropped 22%', desc:'Sprint 12 velocity fell from 44 to 34 pts due to 3 unplanned P0 bugs. Recommend buffer of 15% in Sprint 13 planning.', impact:'MED', action:'Adjust Sprint 13 scope'},
+  {icon:'info',  bg:'var(--sky-a)', title:'Mobile DAU growing fastest', desc:'Mobile segment up +31% MoM since iOS feature parity shipped. Now 18% of DAU. Consider mobile-first prioritization in roadmap.', impact:'MED', action:'Update roadmap'},
+  {icon:'trend', bg:'var(--violet-a)', title:'Retention improving for Jan cohorts', desc:'Jan W2 cohort shows W4 retention of 54% vs 51% for Jan W1. New onboarding email sequence is likely contributing.', impact:'MED', action:'Scale onboarding experiment'},
+  {icon:'warn',  bg:'var(--amber-a)', title:'Feature adoption gap at invite step', desc:'Only 31.9% of users invite a teammate — key activation metric. Teams that invite 2+ users have 2.3x higher D30 retention.', impact:'HIGH', action:'Prioritize invite flow'},
+  {icon:'info',  bg:'var(--sky-a)', title:'NPS improved 11 points QoQ', desc:'NPS went from +36 in Q4 to +47 in Q1. Promoter segment grew from 41% to 47%. Performance improvements are the likely driver.', impact:'LOW', action:'Share with leadership'},
+];
+
+// ── COUNTER ANIMATION ──
+function animC(el, target, suffix='', dur=1200){
+  const s=performance.now(), neg=target<0, abs=Math.abs(target);
+  const isFloat = String(target).includes('.');
+  (function f(now){
+    const p=Math.min((now-s)/dur,1), e=1-Math.pow(1-p,3);
+    const v = Math.round(e*abs*10)/10;
+    el.innerHTML = (neg?'-':'') + (isFloat ? v.toFixed(1) : Math.round(e*abs).toLocaleString()) + suffix;
+    if(p<1) requestAnimationFrame(f);
+  })(performance.now());
+}
+
+// ── RENDER KPIs ──
+function renderKPIs(seg){
+  const d = SEGMENTS[seg];
+  animC(document.getElementById('kDau'), d.dau, '', 1000);
+  animC(document.getElementById('kMau'), d.mau, '', 1000);
+  animC(document.getElementById('kNps'), d.nps, '', 800);
+  animC(document.getElementById('kRet'), d.d30, '%', 800);
+  animC(document.getElementById('kStick'), d.stick, '%', 800);
+}
+
+// ── CHARTS ──
+Chart.defaults.color = '#4b5a72';
+Chart.defaults.font.family = "'DM Mono'";
+Chart.defaults.font.size = 10;
+
+let dauChart, npsChart, burndownChart;
+
+function initCharts(){
+  // DAU/MAU
+  dauChart = new Chart(document.getElementById('dauChart'), {
+    type:'line',
+    data:{
+      labels: DAYS,
+      datasets:[
+        {label:'DAU', data:DAU_DATA, borderColor:'#0ea5e9', backgroundColor:'rgba(14,165,233,.08)', fill:true, tension:.4, borderWidth:2, pointRadius:0, pointHoverRadius:4},
+        {label:'MAU', data:MAU_DATA.map(v=>v/5), borderColor:'#7c3aed', backgroundColor:'transparent', tension:.4, borderWidth:2, pointRadius:0, pointHoverRadius:4, borderDash:[4,4]},
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:true,labels:{color:'#4b5a72',boxWidth:8,padding:16}},tooltip:{backgroundColor:'#111827',borderColor:'rgba(255,255,255,.08)',borderWidth:1,titleColor:'#f0f4ff',bodyColor:'#94a3b8',padding:10}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{maxTicksLimit:8}},
+        y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{callback:v=>v>=1000?Math.round(v/1000)+'k':v}}
+      }
+    }
+  });
+
+  // NPS trend
+  npsChart = new Chart(document.getElementById('npsChart'), {
+    type:'line',
+    data:{labels:WEEKS.slice(-12),datasets:[{data:NPS_TREND.slice(-12),borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,.06)',fill:true,tension:.4,borderWidth:2,pointRadius:0,pointHoverRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#111827',borderColor:'rgba(255,255,255,.08)',borderWidth:1,titleColor:'#f0f4ff',bodyColor:'#94a3b8',padding:8}},scales:{x:{grid:{color:'rgba(255,255,255,.04)'}},y:{grid:{color:'rgba(255,255,255,.04)'},min:20,max:65}}}
+  });
+
+  // Burndown
+  const ideal = Array.from({length:14},(_,i)=>Math.round(34 - (34/13)*i));
+  const actual = [34,34,32,30,28,25,22,21,null,null,null,null,null,null];
+  burndownChart = new Chart(document.getElementById('burndownChart'), {
+    type:'line',
+    data:{
+      labels:Array.from({length:14},(_,i)=>'D'+(i+1)),
+      datasets:[
+        {label:'Ideal',  data:ideal,  borderColor:'rgba(255,255,255,.15)',borderDash:[4,4],borderWidth:1.5,pointRadius:0,tension:0},
+        {label:'Actual', data:actual, borderColor:'#0ea5e9',backgroundColor:'rgba(14,165,233,.08)',fill:true,tension:.3,borderWidth:2,pointRadius:3,pointBackgroundColor:'#0ea5e9'},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.04)'}},y:{grid:{color:'rgba(255,255,255,.04)'},min:0,max:36,ticks:{callback:v=>v+' pts'}}}}
+  });
+}
+
+// ── RENDER TABLES ──
+function renderRetention(){
+  const colors = [100,90,80,70,60,50,40];
+  function cellColor(pct){
+    if(!pct) return '';
+    const v = parseInt(pct);
+    if(v>=70) return `background:rgba(34,197,94,.18);color:#22c55e`;
+    if(v>=50) return `background:rgba(245,158,11,.18);color:#f59e0b`;
+    if(v>=30) return `background:rgba(244,63,94,.15);color:#f43f5e`;
+    return `background:rgba(244,63,94,.08);color:#f87171`;
+  }
+  document.getElementById('retentionTable').innerHTML = COHORTS.map(c=>`
+    <tr>
+      <td>${c.week}</td>
+      <td style="color:var(--t3)">${c.size}</td>
+      <td><span class="ret-cell" style="${cellColor(c.w1)}">${c.w1||'—'}</span></td>
+      <td><span class="ret-cell" style="${cellColor(c.w2)}">${c.w2||'—'}</span></td>
+      <td><span class="ret-cell" style="${cellColor(c.w4)}">${c.w4||'—'}</span></td>
+      <td><span class="ret-cell" style="${cellColor(c.w8)}">${c.w8||'—'}</span></td>
+      <td><span class="ret-cell" style="${cellColor(c.w12)}">${c.w12||'—'}</span></td>
+    </tr>`).join('');
+}
+
+function renderFunnel(){
+  const max = FUNNEL_DATA[0].count;
+  const colors = ['#0ea5e9','#22d3ee','#14b8a6','#7c3aed','#a855f7','#f43f5e'];
+  document.getElementById('funnelData').innerHTML = FUNNEL_DATA.map((s,i)=>{
+    const drop = i>0 ? `<div class="funnel-drop">↓ ${Math.round((1-s.count/FUNNEL_DATA[i-1].count)*100)}% drop</div>` : '';
+    return `
+    <div class="funnel-step">
+      <div class="funnel-bar-wrap">
+        <span class="funnel-label">${s.label}</span>
+        <div class="funnel-track">
+          <div class="funnel-fill" style="width:0;background:${colors[i]};opacity:.8" data-w="${s.pct}%">
+            <span class="funnel-pct">${s.pct}%</span>
+          </div>
+        </div>
+        <span class="funnel-count">${s.count.toLocaleString()}</span>
+      </div>
+      ${drop}
+    </div>`;
+  }).join('');
+}
+
+function renderRICE(){
+  const maxScore = Math.max(...RICE_DATA.map(f=>f.score));
+  document.getElementById('riceTable').innerHTML = RICE_DATA.map(f=>`
+    <tr>
+      <td><span class="rank-badge cb-${f.rank<=2?'rose':f.rank<=4?'amber':'neutral'}">${f.rank}</span></td>
+      <td style="color:var(--t1);font-weight:500;max-width:180px;">${f.name}</td>
+      <td style="color:var(--t3);">${f.reach.toLocaleString()}</td>
+      <td style="text-align:center">${f.impact}×</td>
+      <td style="text-align:center">${f.conf}%</td>
+      <td style="text-align:center">${f.effort} wks</td>
+      <td>
+        <div class="rice-score" style="color:${f.rank<=2?'var(--rose)':f.rank<=4?'var(--amber)':'var(--t3)'}">${f.score}</div>
+        <div class="rice-bar"><div class="rice-fill" style="width:0" data-w="${Math.round(f.score/maxScore*100)}%"></div></div>
+      </td>
+      <td><span class="impact-chip ${f.recClass}">${f.rec}</span></td>
+    </tr>`).join('');
+}
+
+function renderSprintTasks(){
+  document.getElementById('sprintTasks').innerHTML = SPRINT_TASKS.map(t=>`
+    <div class="sprint-task">
+      <div class="task-status ts-${t.status}"></div>
+      <span class="task-label ${t.labelCls}">${t.label}</span>
+      <span class="task-text">${t.text}</span>
+      <span class="task-owner" style="color:var(--t4)">${t.owner}</span>
+      <span class="task-pts">${t.pts}pts</span>
+    </div>`).join('');
+}
+
+function renderInsights(){
+  const svgIcons = {
+    'alert': `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5L11.5 10.5H.5L6 1.5z" stroke="#f43f5e" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 5v2.5" stroke="#f43f5e" stroke-width="1.3" stroke-linecap="round"/><circle cx="6" cy="9" r=".5" fill="#f43f5e"/></svg>`,
+    'check': `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    'warn':  `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="#f59e0b" stroke-width="1.3"/><path d="M6 4v2.5" stroke="#f59e0b" stroke-width="1.3" stroke-linecap="round"/><circle cx="6" cy="8.5" r=".5" fill="#f59e0b"/></svg>`,
+    'info':  `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="#0ea5e9" stroke-width="1.3"/><path d="M6 5.5v3" stroke="#0ea5e9" stroke-width="1.3" stroke-linecap="round"/><circle cx="6" cy="4" r=".5" fill="#0ea5e9"/></svg>`,
+    'trend': `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 9L4 6l2.5 2L9 4l2-1.5" stroke="#7c3aed" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  };
+  document.getElementById('insightsList').innerHTML = INSIGHTS.map(ins=>`
+    <div class="insight-row">
+      <div class="insight-icon" style="background:${ins.bg}">${svgIcons[ins.icon]||''}</div>
+      <div class="insight-body">
+        <div class="insight-title">${ins.title}</div>
+        <div class="insight-desc">${ins.desc}</div>
+        <div class="insight-meta">
+          <span class="impact-chip ic-${ins.impact.toLowerCase().slice(0,3)}">${ins.impact}</span>
+          <span class="insight-action">→ ${ins.action}</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ── SEGMENT FILTER ──
+function setSeg(btn, seg){
+  document.querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  currentSeg = seg;
+  renderKPIs(seg);
+}
+
+// ── EXPORT ──
+function exportReport(){
+  const d = SEGMENTS[currentSeg];
+  const seg = currentSeg === 'all' ? 'All Users' : currentSeg.charAt(0).toUpperCase()+currentSeg.slice(1);
+  let md = `# Pulse — Product Metrics Report\n`;
+  md += `**Segment:** ${seg} · **Period:** Q1 2025 · **Generated:** ${new Date().toLocaleDateString()}\n\n---\n\n`;
+  md += `## Key Metrics\n- DAU: **${d.dau.toLocaleString()}** (↑12.4% MoM)\n- MAU: **${d.mau.toLocaleString()}** (↑8.7% MoM)\n- NPS: **+${d.nps}** (↑11pts QoQ)\n- D30 Retention: **${d.d30}%**\n- Stickiness: **${d.stick}%** DAU/MAU\n\n`;
+  md += `## Top Insights\n`;
+  INSIGHTS.forEach(ins=>{ md += `- **[${ins.impact}]** ${ins.title}: ${ins.desc}\n`; });
+  md += `\n## RICE Prioritization (Q2)\n`;
+  RICE_DATA.forEach(f=>{ md += `${f.rank}. **${f.name}** — RICE: ${f.score} · ${f.rec}\n`; });
+  md += `\n## A/B Test — Checkout Flow\nVariant B wins: +18.4% conversion lift (p<0.01) · Estimated +$84K MRR\n\n`;
+  md += `## Sprint 12 Status\nGoal: Platform Stability · Velocity: 34pts · Done: 21pts · Remaining: 13pts\n\n`;
+  md += `---\n*Built by Mariam Elsayed · Pulse Product Intelligence*`;
+  const a = document.createElement('a');
+  a.href = 'data:text/plain;charset=utf-8,'+encodeURIComponent(md);
+  a.download = 'pulse-report-q1-2025.md';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>document.body.removeChild(a), 100);
+}
+
+// ── ANIMATE BARS ──
+function animateBars(){
+  document.querySelectorAll('[data-w]').forEach(el=>{
+    setTimeout(()=>{ el.style.width = el.dataset.w; }, 300);
+  });
+}
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded', ()=>{
+  renderKPIs('all');
+  renderRetention();
+  renderFunnel();
+  renderRICE();
+  renderSprintTasks();
+  renderInsights();
+  initCharts();
+  setTimeout(animateBars, 400);
+});
+</script>
+</body>
+</html>
